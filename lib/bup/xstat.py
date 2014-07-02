@@ -5,50 +5,49 @@ from bup import _helpers
 
 try:
     _bup_utimensat = _helpers.bup_utimensat
-except AttributeError, e:
+except AttributeError:
     _bup_utimensat = False
 
 try:
     _bup_utimes = _helpers.bup_utimes
-except AttributeError, e:
+except AttributeError:
     _bup_utimes = False
 
 try:
     _bup_lutimes = _helpers.bup_lutimes
-except AttributeError, e:
+except AttributeError:
     _bup_lutimes = False
 
 
-def timespec_to_nsecs((ts_s, ts_ns)):
-    return ts_s * 10**9 + ts_ns
+def timespec_to_nsecs(ts):
+    return ts[0] * 10**9 + ts[1]
 
 
 def nsecs_to_timespec(ns):
     """Return (s, ns) where ns is always non-negative
     and t = s + ns / 10e8""" # metadata record rep
     ns = int(ns)
-    return (ns / 10**9, ns % 10**9)
+    return ns // 10**9, ns % 10**9
 
 
 def nsecs_to_timeval(ns):
-    """Return (s, us) where ns is always non-negative
+    """Return (s, us) where us is always non-negative
     and t = s + us / 10e5"""
     ns = int(ns)
-    return (ns / 10**9, (ns % 10**9) / 1000)
+    return ns // 10**9, (ns % 10**9) // 1000
 
 
 def fstime_floor_secs(ns):
     """Return largest integer not greater than ns / 10e8."""
-    return int(ns) / 10**9;
+    return int(ns) // 10**9
 
 
-def fstime_to_timespec(ns):
-    return nsecs_to_timespec(ns)
+fstime_to_timespec = nsecs_to_timespec
 
 
 def fstime_to_sec_str(fstime):
-    (s, ns) = fstime_to_timespec(fstime)
-    if(s < 0):
+    s, ns = fstime_to_timespec(fstime)
+    if s < 0:
         s += 1
     if ns == 0:
         return '%d' % s
@@ -148,9 +147,9 @@ def mode_str(mode):
 
 def classification_str(mode, include_exec):
     if pystat.S_ISREG(mode):
-        if include_exec \
-           and (pystat.S_IMODE(mode) \
-                & (pystat.S_IXUSR | pystat.S_IXGRP | pystat.S_IXOTH)):
+        if (include_exec and
+                (pystat.S_IMODE(mode)
+                    & (pystat.S_IXUSR | pystat.S_IXGRP | pystat.S_IXOTH))):
             return '*'
         else:
             return ''

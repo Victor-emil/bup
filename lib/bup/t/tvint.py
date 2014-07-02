@@ -1,6 +1,6 @@
 from bup import vint
 from wvtest import *
-from cStringIO import StringIO
+from bup.py_compat import StringIO
 
 
 def encode_and_decode_vuint(x):

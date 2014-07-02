@@ -1,5 +1,5 @@
 import re, struct, errno, time, zlib
-from bup import git, ssh
+from bup import git, ssh, py_compat
 from bup.helpers import *
 
 bwlimit = None
@@ -21,7 +21,7 @@ def _raw_write_bwlimit(f, buf, bwcount, bwtime):
         # the average back up to bwlimit - that will risk overflowing the
         # outbound queue, which defeats the purpose.  So if we fall behind
         # by more than one block delay, we shouldn't ever try to catch up.
-        for i in xrange(0,len(buf),4096):
+        for i in range(0,len(buf),4096):
             now = time.time()
             next = max(now, bwtime + 1.0*bwcount/bwlimit)
             time.sleep(next-now)
@@ -41,7 +41,7 @@ def parse_remote(remote):
             '%s(?:%s%s)?%s' % (protocol, host, port, path), remote, re.I)
     if url_match:
         if not url_match.group(1) in ('ssh', 'bup', 'file'):
-            raise ClientError, 'unexpected protocol: %s' % url_match.group(1)
+            raise ClientError('unexpected protocol: %s' % url_match.group(1))
         return url_match.group(1,3,4,5)
     else:
         rs = remote.split(':', 1)
@@ -61,7 +61,7 @@ class Client:
             remote = '%s:' % is_reverse
         (self.protocol, self.host, self.port, self.dir) = parse_remote(remote)
         self.cachedir = git.repo('index-cache/%s'
-                                 % re.sub(r'[^@\w]', '_', 
+                                 % re.sub(r'[^@\w]', '_',
                                           "%s:%s" % (self.host, self.dir)))
         if is_reverse:
             self.pout = os.fdopen(3, 'rb')
@@ -75,8 +75,10 @@ class Client:
                     self.pout = self.p.stdout
                     self.pin = self.p.stdin
                     self.conn = Conn(self.pout, self.pin)
-                except OSError, e:
-                    raise ClientError, 'connect: %s' % e, sys.exc_info()[2]
+                except OSError as err:
+                    py_compat.reraise(
+                            ClientError('connect: %s'%err), sys.exc_traceback)
+
             elif self.protocol == 'bup':
                 self.sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                 self.sock.connect((self.host, atoi(self.port) or 1982))
@@ -94,7 +96,7 @@ class Client:
     def __del__(self):
         try:
             self.close()
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.EPIPE:
                 pass
             else:
@@ -130,17 +132,17 @@ class Client:
                                   % rv)
         try:
             return self.conn.check_ok()
-        except Exception, e:
-            raise ClientError, e, sys.exc_info()[2]
+        except Exception as err:
+            py_compat.reraise(ClientError(err), sys.exc_traceback)
 
     def check_busy(self):
         if self._busy:
             raise ClientError('already busy with command %r' % self._busy)
-        
+
     def ensure_busy(self):
         if not self._busy:
             raise ClientError('expected to be busy, but not busy?!')
-        
+
     def _not_busy(self):
         self._busy = None
 
@@ -262,7 +264,7 @@ class Client:
 
     def update_ref(self, refname, newval, oldval):
         self.check_busy()
-        self.conn.write('update-ref %s\n%s\n%s\n' 
+        self.conn.write('update-ref %s\n%s\n%s\n'
                         % (refname, newval.encode('hex'),
                            (oldval or '').encode('hex')))
         self.check_ok()
@@ -334,8 +336,8 @@ class PackWriter_Remote(git.PackWriter):
         try:
             (self._bwcount, self._bwtime) = _raw_write_bwlimit(
                     self.file, outbuf, self._bwcount, self._bwtime)
-        except IOError, e:
-            raise ClientError, e, sys.exc_info()[2]
+        except IOError as err:
+            py_compat.reraise(ClientError(err), sys.exc_traceback)
         self.outbytes += len(data)
         self.count += 1
 

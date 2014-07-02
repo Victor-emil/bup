@@ -27,9 +27,9 @@ class PackMidx:
             return self._init_failed()
         ver = struct.unpack('!I', self.map[4:8])[0]
         if ver < MIDX_VERSION:
-            log('Warning: ignoring old-style (v%d) midx %r\n' 
+            log('Warning: ignoring old-style (v%d) midx %r\n'
                 % (ver, filename))
-            self.force_keep = False  # old stuff is boring  
+            self.force_keep = False  # old stuff is boring
             return self._init_failed()
         if ver > MIDX_VERSION:
             log('Warning: ignoring too-new (v%d) midx %r\n'
@@ -111,7 +111,7 @@ class PackMidx:
         return None
 
     def __iter__(self):
-        for i in xrange(self._fanget(self.entries-1)):
+        for i in range(self._fanget(self.entries-1)):
             yield buffer(self.shatable, i*20, 20)
 
     def __len__(self):

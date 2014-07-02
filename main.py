@@ -49,7 +49,7 @@ def usage(msg=""):
     for cmd,synopsis in sorted(common.items()):
         log('    %-10s %s\n' % (cmd, synopsis))
     log('\n')
-    
+
     log('Other available commands:\n')
     cmds = []
     for c in sorted(os.listdir(cmdpath) + os.listdir(exepath)):
@@ -59,7 +59,7 @@ def usage(msg=""):
                 cmds.append(c[4:])
     log(columnate(cmds, '    '))
     log('\n')
-    
+
     log("See 'bup help COMMAND' for more information on " +
         "a specific command.\n")
     if msg:
@@ -74,7 +74,7 @@ if len(argv) < 2:
 try:
     optspec = ['help', 'version', 'debug', 'profile', 'bup-dir=']
     global_args, subcmd = getopt.getopt(argv[1:], '?VDd:', optspec)
-except getopt.GetoptError, ex:
+except getopt.GetoptError as ex:
     usage('error: %s' % ex.msg)
 
 help_requested = None
@@ -189,7 +189,7 @@ try:
             ret = p.wait()
             forward_signals = False
             break
-    except OSError, e:
+    except OSError as e:
         log('%s: %s\n' % (subcmd[0], e))
         ret = 98
 finally:

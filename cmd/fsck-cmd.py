@@ -71,7 +71,7 @@ def git_verify(base):
     if opt.quick:
         try:
             quick_verify(base)
-        except Exception, e:
+        except Exception as e:
             debug('error: %s\n' % e)
             return 1
         return 0
@@ -121,7 +121,7 @@ def do_pack(base, last, par2_exists):
         assert(opt.generate and (not par2_ok or par2_exists))
         action_result = 'exists' if par2_exists else 'skipped'
     if opt.verbose:
-        print last, action_result
+        print(last, action_result)
     return code
 
 
@@ -196,7 +196,7 @@ for name in extra:
         else: # child
             try:
                 sys.exit(do_pack(base, last, par2_exists))
-            except Exception, e:
+            except Exception as e:
                 log('exception: %r\n' % e)
                 sys.exit(99)
                 

@@ -1,19 +1,20 @@
 #!/usr/bin/env python
 
 import sys, stat, time, os, errno, re
-from bup import metadata, options, git, index, drecurse, hlinkdb
+from bup import metadata, options, git, index, drecurse, hlinkdb, py_compat
 from bup.helpers import *
 from bup.hashsplit import GIT_MODE_TREE, GIT_MODE_FILE
 
+@py_compat.iter
 class IterHelper:
     def __init__(self, l):
         self.i = iter(l)
         self.cur = None
-        self.next()
+        next(self)
 
-    def next(self):
+    def __next__(self):
         try:
-            self.cur = self.i.next()
+            self.cur = next(self.i)
         except StopIteration:
             self.cur = None
         return self.cur
@@ -57,7 +58,7 @@ def clear_index(indexfile):
             os.remove(path)
             if opt.verbose:
                 log('clear: removed %s\n' % path)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
 
@@ -102,13 +103,13 @@ def update_index(top, excluded_paths, exclude_rxs):
                 rig.cur.repack()
                 if rig.cur.nlink > 1 and not stat.S_ISDIR(rig.cur.mode):
                     hlinks.del_path(rig.cur.name)
-            rig.next()
+            next(rig)
         if rig.cur and rig.cur.name == path:    # paths that already existed
             try:
                 meta = metadata.from_path(path, statinfo=pst)
-            except (OSError, IOError), e:
+            except (OSError, IOError) as e:
                 add_error(e)
-                rig.next()
+                next(rig)
                 continue
             if not stat.S_ISDIR(rig.cur.mode) and rig.cur.nlink > 1:
                 hlinks.del_path(rig.cur.name)
@@ -137,11 +138,11 @@ def update_index(top, excluded_paths, exclude_rxs):
             if opt.fake_invalid:
                 rig.cur.invalidate()
             rig.cur.repack()
-            rig.next()
+            next(rig)
         else:  # new paths
             try:
                 meta = metadata.from_path(path, statinfo=pst)
-            except (OSError, IOError), e:
+            except (OSError, IOError) as e:
                 add_error(e)
                 continue
             # See same assignment to 0, above, for rationale.
@@ -257,7 +258,7 @@ if opt.update:
 
 if opt['print'] or opt.status or opt.modified:
     for (name, ent) in index.Reader(indexfile).filter(extra or ['']):
-        if (opt.modified 
+        if (opt.modified
             and (ent.is_valid() or ent.is_deleted() or not ent.mode)):
             continue
         line = ''
@@ -275,7 +276,7 @@ if opt['print'] or opt.status or opt.modified:
             line += ent.sha.encode('hex') + ' '
         if opt.long:
             line += "%7s %7s " % (oct(ent.mode), oct(ent.gitmode))
-        print line + (name or './')
+        print(line + (name or './'))
 
 if opt.check and (opt['print'] or opt.status or opt.modified or opt.update):
     log('check: starting final check.\n')

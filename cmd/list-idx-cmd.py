@@ -1,4 +1,7 @@
 #!/usr/bin/env python
+
+from __future__ import print_function
+
 import sys, os
 from bup import git, options
 from bup.helpers import *
@@ -35,18 +38,18 @@ count = 0
 for name in extra:
     try:
         ix = git.open_idx(name)
-    except git.GitError, e:
+    except git.GitError as e:
         add_error('%s: %s' % (name, e))
         continue
     if len(opt.find) == 40:
         if ix.exists(bin):
-            print name, find
+            print(name, find)
     else:
         # slow, exhaustive search
         for _i in ix:
             i = str(_i).encode('hex')
             if i.startswith(find):
-                print name, i
+                print(name, i)
             qprogress('Searching: %d\r' % count)
             count += 1
 

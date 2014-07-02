@@ -8,15 +8,17 @@ MAX_PER_TREE = 256
 progress_callback = None
 fanout = 16
 
-GIT_MODE_FILE = 0100644
-GIT_MODE_TREE = 040000
-GIT_MODE_SYMLINK = 0120000
+GIT_MODE_FILE = 0o100644
+GIT_MODE_TREE = 0o40000
+GIT_MODE_SYMLINK = 0o120000
 assert(GIT_MODE_TREE != 40000)  # 0xxx should be treated as octal
 
 # The purpose of this type of buffer is to avoid copying on peek(), get(),
 # and eat().  We do copy the buffer contents on put(), but that should
 # be ok if we always only put() large amounts of data at a time.
 class Buf:
+# should probably rewrite this to use something like
+# http://stackoverflow.com/questions/10917581/efficient-fifo-queue-for-arbitrarily-sized-chunks-of-bytes-in-python
     def __init__(self):
         self.data = ''
         self.start = 0
@@ -25,10 +27,10 @@ class Buf:
         if s:
             self.data = buffer(self.data, self.start) + s
             self.start = 0
-            
+
     def peek(self, count):
         return buffer(self.data, self.start, count)
-    
+
     def eat(self, count):
         self.start += count
 
@@ -45,7 +47,7 @@ def readfile_iter(files, progress=None):
     for filenum,f in enumerate(files):
         ofs = 0
         b = ''
-        while 1:
+        while True:
             if progress:
                 progress(filenum, len(b))
             fadvise_done(f, max(0, ofs - 1024*1024))

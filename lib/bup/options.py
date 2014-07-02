@@ -247,12 +247,12 @@ class Options:
         """
         try:
             (flags,extra) = self.optfunc(args, self._shortopts, self._longopts)
-        except getopt.GetoptError, e:
+        except getopt.GetoptError as e:
             self.fatal(e)
 
         opt = OptDict(aliases=self._aliases)
 
-        for k,v in self._defaults.iteritems():
+        for k,v in self._defaults.items():
             opt[k] = v
 
         for (k,v) in flags:

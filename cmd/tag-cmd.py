@@ -38,7 +38,7 @@ if opt.delete:
 
     try:
         os.unlink(tag_file)
-    except OSError, e:
+    except OSError as e:
         log("bup: error: unable to delete tag '%s': %s" % (opt.delete, e))
         sys.exit(1)
 
@@ -48,7 +48,7 @@ tags = [t for sublist in git.tags().values() for t in sublist]
 
 if not extra:
     for t in tags:
-        print t
+        print(t)
     sys.exit(0)
 elif len(extra) < 2:
     o.fatal('no commit ref or hash given.')
@@ -67,7 +67,7 @@ if tag_name.startswith('.'):
 
 try:
     hash = git.rev_parse(commit)
-except git.GitError, e:
+except git.GitError as e:
     log("bup: error: %s" % e)
     sys.exit(2)
 
@@ -83,7 +83,7 @@ if not pL.exists(hash):
 tag_file = git.repo('refs/tags/%s' % tag_name)
 try:
     tag = file(tag_file, 'w')
-except OSError, e:
+except OSError as e:
     log("bup: error: could not create tag '%s': %s" % (tag_name, e))
     sys.exit(3)
 

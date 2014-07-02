@@ -19,7 +19,7 @@ if extra:
 
 try:
     git.init_repo()  # local repo
-except git.GitError, e:
+except git.GitError as e:
     log("bup: error: could not init repository: %s" % e)
     sys.exit(1)
 

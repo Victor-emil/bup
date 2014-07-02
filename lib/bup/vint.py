@@ -5,7 +5,7 @@
 # This code is covered under the terms of the GNU Library General
 # Public License as described in the bup LICENSE file.
 
-from cStringIO import StringIO
+from bup.py_compat import StringIO
 
 # Variable length integers are encoded as vints -- see jakarta lucene.
 

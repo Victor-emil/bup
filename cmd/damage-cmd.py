@@ -6,7 +6,7 @@ from bup.helpers import *
 
 def randblock(n):
     l = []
-    for i in xrange(n):
+    for i in range(n):
         l.append(chr(random.randrange(0,256)))
     return ''.join(l)
 

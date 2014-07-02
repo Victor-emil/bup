@@ -12,6 +12,7 @@ import math
 # This function should really be in helpers, not in bup.options.  But we
 # want options.py to be standalone so people can include it in other projects.
 from bup.options import _tty_width
+from functools import reduce
 tty_width = _tty_width
 
 
@@ -52,7 +53,7 @@ def _hard_write(fd, buf):
             raise IOError('select(fd) returned without being writable')
         try:
             sz = os.write(fd, buf)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.EAGAIN:
                 raise
         assert(sz >= 0)
@@ -64,7 +65,7 @@ def log(s):
     """Print a log message to stderr."""
     global _last_prog
     sys.stdout.flush()
-    _hard_write(sys.stderr.fileno(), s)
+    _hard_write(sys.stderr.fileno(), s.encode())
     _last_prog = 0
 
 
@@ -91,7 +92,7 @@ def progress(s):
 
 def qprogress(s):
     """Calls progress() only if we haven't printed progress in a while.
-    
+
     This avoids overloading the stderr buffer with excess junk.
     """
     global _last_prog
@@ -122,7 +123,7 @@ def mkdirp(d, mode=None):
             os.makedirs(d, mode)
         else:
             os.makedirs(d)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.EEXIST:
             pass
         else:
@@ -137,10 +138,10 @@ def _fallback_next(it, default=_unspecified_next_default):
     iterator is exhausted, otherwise StopIteration is raised."""
 
     if default is _unspecified_next_default:
-        return it.next()
+        return next(it)
     else:
         try:
-            return it.next()
+            return next(it)
         except StopIteration:
             return default
 
@@ -170,7 +171,7 @@ def merge_iter(iters, pfreq, pfunc, pfinal, key=None):
             yield e
         count += 1
         try:
-            e = it.next() # Don't use next() function, it's too expensive
+            e = next(it) # TODO: Don't use next() function, it's too expensive
         except StopIteration:
             heapq.heappop(heap) # remove current
         else:
@@ -186,7 +187,7 @@ def unlink(f):
     """
     try:
         os.unlink(f)
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             pass  # it doesn't exist, that's what you asked for
 
@@ -205,7 +206,7 @@ def _argmax_base(command):
     base_size = 2048
     for c in command:
         base_size += len(command) + 1
-    for k, v in environ.iteritems():
+    for k, v in environ.items():
         base_size += len(k) + len(v) + 2 + sizeof(c_void_p)
     return base_size
 
@@ -555,7 +556,7 @@ class DemuxConn(BaseConn):
                 if not self._next_packet(timeout):
                     return False
             try:
-                self.buf = self.reader.next()
+                self.buf = next(self.reader)
                 return True
             except StopIteration:
                 self.reader = None
@@ -771,14 +772,14 @@ def columnate(l, prefix):
         return ""
     l = l[:]
     clen = max(len(s) for s in l)
-    ncols = (tty_width() - len(prefix)) / (clen + 2)
+    ncols = (tty_width() - len(prefix)) // (clen + 2)
     if ncols <= 1:
         ncols = 1
         clen = 0
     cols = []
     while len(l) % ncols:
         l.append('')
-    rows = len(l)/ncols
+    rows = len(l)//ncols
     for s in range(0, len(l), rows):
         cols.append(l[s:s+rows])
     out = ''
@@ -792,7 +793,7 @@ def parse_date_or_fatal(str, fatal):
     For now we expect a string that contains a float."""
     try:
         date = atof(str)
-    except ValueError, e:
+    except ValueError as e:
         raise fatal('invalid date format (should be a float): %r' % e)
     else:
         return date
@@ -809,7 +810,7 @@ def parse_excludes(options, fatal):
         elif option == '--exclude-from':
             try:
                 f = open(realpath(parameter))
-            except IOError, e:
+            except IOError as e:
                 raise fatal("couldn't read %s" % parameter)
             for exclude_path in f.readlines():
                 # FIXME: perhaps this should be rstrip('\n')
@@ -829,12 +830,12 @@ def parse_rx_excludes(options, fatal):
         if option == '--exclude-rx':
             try:
                 excluded_patterns.append(re.compile(parameter))
-            except re.error, ex:
+            except re.error as ex:
                 fatal('invalid --exclude-rx pattern (%s): %s' % (parameter, ex))
         elif option == '--exclude-rx-from':
             try:
                 f = open(realpath(parameter))
-            except IOError, e:
+            except IOError as e:
                 raise fatal("couldn't read %s" % parameter)
             for pattern in f.readlines():
                 spattern = pattern.rstrip('\n')
@@ -842,7 +843,7 @@ def parse_rx_excludes(options, fatal):
                     continue
                 try:
                     excluded_patterns.append(re.compile(spattern))
-                except re.error, ex:
+                except re.error as ex:
                     fatal('invalid --exclude-rx pattern (%s): %s' % (spattern, ex))
     return excluded_patterns
 
@@ -871,7 +872,7 @@ def path_components(path):
     Example:
       '/home/foo' -> [('', '/'), ('home', '/home'), ('foo', '/home/foo')]"""
     if not path.startswith('/'):
-        raise Exception, 'path must start with "/": %s' % path
+        raise Exception('path must start with "/": %s' % path)
     # Since we assume path startswith('/'), we can skip the first element.
     result = [('', '/')]
     norm_path = os.path.abspath(path)

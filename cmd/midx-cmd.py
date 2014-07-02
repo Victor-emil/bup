@@ -23,7 +23,7 @@ merge_into = _helpers.merge_into
 
 
 def _group(l, count):
-    for i in xrange(0, len(l), count):
+    for i in range(0, len(l), count):
         yield l[i:i+count]
         
         
@@ -41,7 +41,7 @@ def check_midx(name):
     log('Checking %s.\n' % nicename)
     try:
         ix = git.open_idx(name)
-    except git.GitError, e:
+    except git.GitError as e:
         add_error('%s: %s' % (name, e))
         return
     for count,subname in enumerate(ix.idxnames):
@@ -143,10 +143,10 @@ def _do_midx(outdir, outfilename, infilenames, prefixstr):
     if 0:
         p = midx.PackMidx(outfilename)
         assert(len(p.idxnames) == len(infilenames))
-        print p.idxnames
+        print(p.idxnames)
         assert(len(p) == total)
         for pe, e in p, git.idxmerge(inp, final_progress=False):
-            pin = pi.next()
+            pin = next(pi)
             assert(i == pin)
             assert(p.exists(i))
 
@@ -156,7 +156,7 @@ def _do_midx(outdir, outfilename, infilenames, prefixstr):
 def do_midx(outdir, outfilename, infilenames, prefixstr):
     rv = _do_midx(outdir, outfilename, infilenames, prefixstr)
     if rv and opt['print']:
-        print rv[1]
+        print(rv[1])
 
 
 def do_midx_dir(path):
@@ -216,7 +216,7 @@ def do_midx_dir(path):
     if opt['print']:
         for sz,name in all:
             if not existed.get(name):
-                print name
+                print(name)
 
 
 def do_midx_group(outdir, infiles):

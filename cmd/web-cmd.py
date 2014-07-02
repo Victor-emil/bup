@@ -1,7 +1,8 @@
 #!/usr/bin/env python
-import sys, stat, urllib, mimetypes, posixpath, time, webbrowser
-from bup import options, git, vfs
+import sys, stat, mimetypes, posixpath, time, webbrowser
+from bup import options, git, vfs, py_compat
 from bup.helpers import *
+
 try:
     import tornado.httpserver
     import tornado.ioloop
@@ -75,11 +76,11 @@ class BupRequestHandler(tornado.web.RequestHandler):
 
     def head(self, path):
         return self._process_request(path)
-    
+
     @tornado.web.asynchronous
     def _process_request(self, path):
-        path = urllib.unquote(path)
-        print 'Handling request for %s' % path
+        path = py_compat.urlunquote(path)
+        print('Handling request for %s' % path)
         try:
             n = top.resolve(path)
         except vfs.NoSuchFile:
@@ -98,12 +99,12 @@ class BupRequestHandler(tornado.web.RequestHandler):
         error).  In either case, the headers are sent.
         """
         if not path.endswith('/') and len(path) > 0:
-            print 'Redirecting from %s to %s' % (path, path + '/')
+            print('Redirecting from %s to %s' % (path, path + '/'))
             return self.redirect(path + '/', permanent=True)
 
         try:
             show_hidden = int(self.request.arguments.get('hidden', [0])[-1])
-        except ValueError, e:
+        except ValueError as e:
             show_hidden = False
 
         self.render(
@@ -135,7 +136,7 @@ class BupRequestHandler(tornado.web.RequestHandler):
             it = chunkyreader(f)
             def write_more(me):
                 try:
-                    blob = it.next()
+                    blob = next(it)
                 except StopIteration:
                     f.close()
                     self.finish()
@@ -220,10 +221,10 @@ if __name__ == "__main__":
 
     try:
         sock = http_server._socket # tornado < 2.0
-    except AttributeError, e:
+    except AttributeError as e:
         sock = http_server._sockets.values()[0]
 
-    print "Serving HTTP on %s:%d..." % sock.getsockname()
+    print("Serving HTTP on %s:%d..." % sock.getsockname())
 
     loop = tornado.ioloop.IOLoop.instance()
     if opt.browser:

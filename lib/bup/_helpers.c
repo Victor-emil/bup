@@ -60,7 +60,7 @@ static int istty2 = 0;
 #define INTEGER_TO_PY(x) \
     (((x) >= 0) ? PyLong_FromUnsignedLongLong(x) : PyLong_FromLongLong(x))
 
-
+#if PY_MAJOR_VERSION < 3
 static int bup_ulong_from_pyint(unsigned long *x, PyObject *py,
                                 const char *name)
 {
@@ -81,12 +81,14 @@ static int bup_ulong_from_pyint(unsigned long *x, PyObject *py,
     *x = tmp;
     return 1;
 }
-
+#endif
 
 static int bup_ulong_from_py(unsigned long *x, PyObject *py, const char *name)
 {
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(py))
         return bup_ulong_from_pyint(x, py, name);
+#endif
 
     if (!PyLong_Check(py))
     {
@@ -125,6 +127,7 @@ static int bup_uint_from_py(unsigned int *x, PyObject *py, const char *name)
 static int bup_ullong_from_py(unsigned PY_LONG_LONG *x, PyObject *py,
                               const char *name)
 {
+#if PY_MAJOR_VERSION < 3
     if (PyInt_Check(py))
     {
         unsigned long tmp;
@@ -135,6 +138,7 @@ static int bup_ullong_from_py(unsigned PY_LONG_LONG *x, PyObject *py,
         }
         return 0;
     }
+#endif
 
     if (!PyLong_Check(py))
     {
@@ -1211,8 +1215,22 @@ static PyMethodDef helper_methods[] = {
     { NULL, NULL, 0, NULL },  // sentinel
 };
 
+#if PY_MAJOR_VERSION >= 3
+static struct PyModuleDef moduledef = {
+    PyModuleDef_HEAD_INIT,
+    "_helpers",             /* m_name */
+    NULL,                   /* m_doc */
+    -1,                     /* m_size */
+    helper_methods,         /* m_methods */
+    NULL,                   /* m_reload */
+    NULL,                   /* m_traverse */
+    NULL,                   /* m_clear */
+    NULL,                   /* m_free */
+};
+#endif
 
-PyMODINIT_FUNC init_helpers(void)
+
+static PyObject *moduleinit(void)
 {
     // FIXME: migrate these tests to configure.  Check against the
     // type we're going to use when passing to python.  Other stat
@@ -1226,9 +1244,15 @@ PyMODINIT_FUNC init_helpers(void)
     assert(sizeof(unsigned PY_LONG_LONG) <= sizeof(unsigned long long));
 
     char *e;
-    PyObject *m = Py_InitModule("_helpers", helper_methods);
-    if (m == NULL)
-        return;
+    PyObject *module;
+
+#if PY_MAJOR_VERSION < 3
+    module = Py_InitModule("_helpers", helper_methods);
+#else
+    module = PyModule_Create(&moduledef);
+#endif
+    if (module == NULL)
+        return module;
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wtautological-compare" // For INTEGER_TO_PY().
@@ -1236,13 +1260,13 @@ PyMODINIT_FUNC init_helpers(void)
     {
         PyObject *value;
         value = INTEGER_TO_PY(AT_FDCWD);
-        PyObject_SetAttrString(m, "AT_FDCWD", value);
+        PyObject_SetAttrString(module, "AT_FDCWD", value);
         Py_DECREF(value);
         value = INTEGER_TO_PY(AT_SYMLINK_NOFOLLOW);
-        PyObject_SetAttrString(m, "AT_SYMLINK_NOFOLLOW", value);
+        PyObject_SetAttrString(module, "AT_SYMLINK_NOFOLLOW", value);
         Py_DECREF(value);
         value = INTEGER_TO_PY(UTIME_NOW);
-        PyObject_SetAttrString(m, "UTIME_NOW", value);
+        PyObject_SetAttrString(module, "UTIME_NOW", value);
         Py_DECREF(value);
     }
 #endif
@@ -1255,7 +1279,7 @@ PyMODINIT_FUNC init_helpers(void)
             exit(1);
         }
         value = INTEGER_TO_PY(arg_max);
-        PyObject_SetAttrString(m, "SC_ARG_MAX", value);
+        PyObject_SetAttrString(module, "SC_ARG_MAX", value);
         Py_DECREF(value);
     }
 #pragma clang diagnostic pop  // ignored "-Wtautological-compare"
@@ -1263,4 +1287,18 @@ PyMODINIT_FUNC init_helpers(void)
     e = getenv("BUP_FORCE_TTY");
     istty2 = isatty(2) || (atoi(e ? e : "0") & 2);
     unpythonize_argv();
+
+    return module;
 }
+
+#if PY_MAJOR_VERSION < 3
+PyMODINIT_FUNC init_helpers(void)
+{
+    moduleinit();
+}
+#else
+PyMODINIT_FUNC PyInit__helpers(void)
+{
+    return moduleinit();
+}
+#endif

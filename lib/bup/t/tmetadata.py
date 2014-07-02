@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import errno, glob, grp, pwd, stat, tempfile, subprocess
 import bup.helpers as helpers
 from bup import git, metadata, vfs
@@ -15,16 +17,16 @@ start_dir = os.getcwd()
 def ex(*cmd):
     try:
         cmd_str = ' '.join(cmd)
-        print >> sys.stderr, cmd_str
+        print(cmd_str, file=sys.stderr)
         rc = subprocess.call(cmd)
         if rc < 0:
-            print >> sys.stderr, 'terminated by signal', - rc
+            print('terminated by signal', - rc, file=sys.stderr)
             sys.exit(1)
         elif rc > 0:
-            print >> sys.stderr, 'returned exit status', rc
+            print('returned exit status', rc, file=sys.stderr)
             sys.exit(1)
-    except OSError, e:
-        print >> sys.stderr, 'subprocess call failed:', e
+    except OSError as e:
+        print('subprocess call failed:', e, file=sys.stderr)
         sys.exit(1)
 
 
@@ -39,7 +41,7 @@ def setup_testfs():
     ex('mount', '-o', 'loop,acl,user_xattr', 'testfs.img', 'testfs')
     # Hide, so that tests can't create risks.
     os.chown('testfs', 0, 0)
-    os.chmod('testfs', 0700)
+    os.chmod('testfs', 0o700)
 
 
 def cleanup_testfs():
@@ -183,7 +185,7 @@ def _linux_attr_supported(path):
         return False
     try:
         metadata.get_linux_file_attr(path)
-    except OSError, e:
+    except OSError as e:
         if e.errno in (errno.ENOTTY, errno.ENOSYS, errno.EOPNOTSUPP):
             return False
         else:
@@ -208,14 +210,14 @@ def test_apply_to_path_restricted_access():
     WVPASSEQ(m.path, path)
     os.chmod(parent, 000)
     m.apply_to_path(path)
-    print >> sys.stderr, helpers.saved_errors
+    print(helpers.saved_errors, file=sys.stderr)
     expected_errors = ['utime: ']
     if m.linux_attr and _linux_attr_supported(tmpdir):
         expected_errors.append('Linux chattr: ')
     if metadata.xattr and m.linux_xattr:
         expected_errors.append("xattr.set '")
     WVPASS(len(helpers.saved_errors) == len(expected_errors))
-    for i in xrange(len(expected_errors)):
+    for i in range(len(expected_errors)):
         WVPASS(str(helpers.saved_errors[i]).startswith(expected_errors[i]))
     clear_errors()
     if wvfailure_count() == initial_failures:

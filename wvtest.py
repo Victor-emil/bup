@@ -53,8 +53,8 @@ if __name__ != '__main__':   # we're imported as a module
         filename = os.path.basename(filename)
         msg = re.sub(r'\s+', ' ', str(msg))
         sys.stderr.flush()
-        print '! %-70s %s' % ('%s:%-4d %s' % (filename, line, msg),
-                              code)
+        print('! %-70s %s' % ('%s:%-4d %s' % (filename, line, msg),
+                              code))
         sys.stdout.flush()
 
 
@@ -117,7 +117,7 @@ if __name__ != '__main__':   # we're imported as a module
         '''
         try:
             func(*args, **kwargs)
-        except etype, e:
+        except etype as e:
             return _check(True, 'EXCEPT(%s)' % _code())
         except:
             _check(False, 'EXCEPT(%s)' % _code())
@@ -131,7 +131,7 @@ if __name__ != '__main__':   # we're imported as a module
     def _check_unfinished():
         if _registered:
             for func in _registered:
-                print 'WARNING: not run: %r' % (func,)
+                print('WARNING: not run: %r' % (func,))
             WVFAIL('wvtest_main() not called')
         if _fails:
             sys.exit(1)
@@ -176,24 +176,24 @@ else:
 def _runtest(fname, f):
     mod = inspect.getmodule(f)
     relpath = _relpath(mod.__file__, os.getcwd()).replace('.pyc', '.py')
-    print
-    print 'Testing "%s" in %s:' % (fname, relpath)
+    print()
+    print('Testing "%s" in %s:' % (fname, relpath))
     sys.stdout.flush()
     try:
         _run_in_chdir(os.path.split(mod.__file__)[0], f)
-    except Exception, e:
-        print
-        print traceback.format_exc()
+    except Exception as e:
+        print()
+        print(traceback.format_exc())
         tb = sys.exc_info()[2]
-        wvtest._result(e, traceback.extract_tb(tb)[1], 'EXCEPTION')
+        _wvtestmod._result(e, traceback.extract_tb(tb)[1], 'EXCEPTION')
 
 
 def _run_registered_tests():
     import wvtest as _wvtestmod
     while _wvtestmod._registered:
         t = _wvtestmod._registered.pop(0)
-        _runtest(t.func_name, t)
-        print
+        _runtest(t.__name__, t)
+        print()
 
 
 def wvtest_main(extra_testfiles=[]):
@@ -201,20 +201,20 @@ def wvtest_main(extra_testfiles=[]):
     _run_registered_tests()
     for modname in extra_testfiles:
         if not os.path.exists(modname):
-            print 'Skipping: %s' % modname
+            print('Skipping: %s' % modname)
             continue
         if modname.endswith('.py'):
             modname = modname[:-3]
-        print 'Importing: %s' % modname
+        print('Importing: %s' % modname)
         path, mod = os.path.split(os.path.abspath(modname))
         nicename = modname.replace(os.path.sep, '.')
         while nicename.startswith('.'):
             nicename = modname[1:]
         _run_in_chdir(path, __import__, nicename, None, None, [])
         _run_registered_tests()
-    print
-    print 'WvTest: %d tests, %d failures.' % (_wvtestmod._tests,
-                                              _wvtestmod._fails)
+    print()
+    print('WvTest: %d tests, %d failures.' % (_wvtestmod._tests,
+                                              _wvtestmod._fails))
 
 
 if __name__ == '__main__':

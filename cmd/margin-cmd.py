@@ -30,7 +30,7 @@ def do_predict(ix):
         expected = prefix * total / (1<<64)
         diff = count - expected
         maxdiff = max(maxdiff, abs(diff))
-    print '%d of %d (%.3f%%) ' % (maxdiff, len(ix), maxdiff*100.0/len(ix))
+    print('%d of %d (%.3f%%) ' % (maxdiff, len(ix), maxdiff*100.0/len(ix)))
     sys.stdout.flush()
     assert(count+1 == len(ix))
 
@@ -51,7 +51,7 @@ else:
         pm = _helpers.bitmatch(last, i)
         longmatch = max(longmatch, pm)
         last = i
-    print longmatch
+    print(longmatch)
     log('%d matching prefix bits\n' % longmatch)
     doublings = math.log(len(mi), 2)
     bpd = longmatch / doublings

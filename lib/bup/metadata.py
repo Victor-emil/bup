@@ -4,9 +4,11 @@
 #
 # This code is covered under the terms of the GNU Library General
 # Public License as described in the bup LICENSE file.
+
+from __future__ import print_function
+
 import errno, os, sys, stat, time, pwd, grp, socket
-from cStringIO import StringIO
-from bup import vint, xstat
+from bup import py_compat, vint, xstat
 from bup.drecurse import recursive_dirlist
 from bup.helpers import add_error, mkdirp, log, is_superuser, format_filesize
 from bup.helpers import pwd_from_uid, pwd_from_name, grp_from_gid, grp_from_name
@@ -42,7 +44,7 @@ except ImportError:
     # not on Linux, in which case files don't have any linux attrs anyway, so
     # lacking the functions isn't a problem.
     get_linux_file_attr = set_linux_file_attr = None
-    
+
 
 # WARNING: the metadata encoding is *not* stable yet.  Caveat emptor!
 
@@ -291,14 +293,14 @@ class Metadata:
         st = None
         try:
             st = xstat.lstat(path)
-        except OSError, e:
+        except OSError as e:
             if e.errno != errno.ENOENT:
                 raise
         if st:
             if stat.S_ISDIR(st.st_mode):
                 try:
                     os.rmdir(path)
-                except OSError, e:
+                except OSError as e:
                     if e.errno in (errno.ENOTEMPTY, errno.EEXIST):
                         msg = 'refusing to overwrite non-empty dir ' + path
                         raise Exception(msg)
@@ -308,24 +310,24 @@ class Metadata:
 
         if stat.S_ISREG(self.mode):
             assert(self._recognized_file_type())
-            fd = os.open(path, os.O_CREAT|os.O_WRONLY|os.O_EXCL, 0600)
+            fd = os.open(path, os.O_CREAT|os.O_WRONLY|os.O_EXCL, 0o600)
             os.close(fd)
         elif stat.S_ISDIR(self.mode):
             assert(self._recognized_file_type())
-            os.mkdir(path, 0700)
+            os.mkdir(path, 0o700)
         elif stat.S_ISCHR(self.mode):
             assert(self._recognized_file_type())
-            os.mknod(path, 0600 | stat.S_IFCHR, self.rdev)
+            os.mknod(path, 0o600 | stat.S_IFCHR, self.rdev)
         elif stat.S_ISBLK(self.mode):
             assert(self._recognized_file_type())
-            os.mknod(path, 0600 | stat.S_IFBLK, self.rdev)
+            os.mknod(path, 0o600 | stat.S_IFBLK, self.rdev)
         elif stat.S_ISFIFO(self.mode):
             assert(self._recognized_file_type())
-            os.mknod(path, 0600 | stat.S_IFIFO)
+            os.mknod(path, 0o600 | stat.S_IFIFO)
         elif stat.S_ISSOCK(self.mode):
             try:
-                os.mknod(path, 0600 | stat.S_IFSOCK)
-            except OSError, e:
+                os.mknod(path, 0o600 | stat.S_IFSOCK)
+            except OSError as e:
                 if e.errno in (errno.EINVAL, errno.EPERM):
                     s = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
                     s.bind(path)
@@ -337,7 +339,7 @@ class Metadata:
                 # on MacOS, symlink() permissions depend on umask, and there's
                 # no way to chown a symlink after creating it, so we have to
                 # be careful here!
-                oldumask = os.umask((self.mode & 0777) ^ 0777)
+                oldumask = os.umask((self.mode & 0o777) ^ 0o777)
                 try:
                     os.symlink(self.symlink_target, path)
                 finally:
@@ -357,7 +359,7 @@ class Metadata:
         if lutime and stat.S_ISLNK(self.mode):
             try:
                 lutime(path, (self.atime, self.mtime))
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EACCES:
                     raise ApplyError('lutime: %s' % e)
                 else:
@@ -365,7 +367,7 @@ class Metadata:
         else:
             try:
                 utime(path, (self.atime, self.mtime))
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EACCES:
                     raise ApplyError('utime: %s' % e)
                 else:
@@ -390,7 +392,7 @@ class Metadata:
                 gid = self.gid
             if not restore_numeric_ids and self.gid != 0:
                 # The grp might not exist on the local system.
-                grps = filter(None, [grp_from_gid(x) for x in user_gids])
+                grps = [_f for _f in [grp_from_gid(x) for x in user_gids] if _f]
                 if self.group in [x.gr_name for x in grps]:
                     g = grp_from_name(self.group)
                     if g:
@@ -399,7 +401,7 @@ class Metadata:
         if uid != -1 or gid != -1:
             try:
                 os.lchown(path, uid, gid)
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EPERM:
                     add_error('lchown: %s' %  e)
                 elif sys.platform.startswith('cygwin') \
@@ -433,7 +435,7 @@ class Metadata:
         try:
             if stat.S_ISLNK(st.st_mode):
                 self.symlink_target = os.readlink(path)
-        except OSError, e:
+        except OSError as e:
             add_error('readlink: %s', e)
 
     def _encode_symlink_target(self):
@@ -479,7 +481,7 @@ class Metadata:
                     if stat.S_ISDIR(st.st_mode):
                         def_acl = posix1e.ACL(filedef=path)
                         def_acls = [def_acl, def_acl]
-            except EnvironmentError, e:
+            except EnvironmentError as e:
                 if e.errno not in (errno.EOPNOTSUPP, errno.ENOSYS):
                     raise
             if acls:
@@ -516,7 +518,7 @@ class Metadata:
         def apply_acl(acl_rep, kind):
             try:
                 acl = posix1e.ACL(text = acl_rep)
-            except IOError, e:
+            except IOError as e:
                 if e.errno == 0:
                     # pylibacl appears to return an IOError with errno
                     # set to 0 if a group referred to by the ACL rep
@@ -527,7 +529,7 @@ class Metadata:
                     raise
             try:
                 acl.applyto(path, kind)
-            except IOError, e:
+            except IOError as e:
                 if e.errno == errno.EPERM or e.errno == errno.EOPNOTSUPP:
                     raise ApplyError('POSIX1e ACL applyto: %s' % e)
                 else:
@@ -560,7 +562,7 @@ class Metadata:
                 attr = get_linux_file_attr(path)
                 if attr != 0:
                     self.linux_attr = attr
-            except OSError, e:
+            except OSError as e:
                 if e.errno == errno.EACCES:
                     add_error('read Linux attr: %s' % e)
                 elif e.errno in (errno.ENOTTY, errno.ENOSYS, errno.EOPNOTSUPP):
@@ -591,7 +593,7 @@ class Metadata:
                 return
             try:
                 set_linux_file_attr(path, self.linux_attr)
-            except OSError, e:
+            except OSError as e:
                 if e.errno in (errno.ENOTTY, errno.EOPNOTSUPP, errno.ENOSYS,
                                errno.EACCES):
                     raise ApplyError('Linux chattr: %s (0x%s)'
@@ -606,7 +608,7 @@ class Metadata:
         if not xattr: return
         try:
             self.linux_xattr = xattr.get_all(path, nofollow=True)
-        except EnvironmentError, e:
+        except EnvironmentError as e:
             if e.errno != errno.EOPNOTSUPP:
                 raise
 
@@ -625,7 +627,7 @@ class Metadata:
 
     def _load_linux_xattr_rec(self, file):
         data = vint.read_bvec(file)
-        memfile = StringIO(data)
+        memfile = py_compat.StringIO(data)
         result = []
         for i in range(vint.read_vuint(memfile)):
             key = vint.read_bvec(memfile)
@@ -643,7 +645,7 @@ class Metadata:
             return
         try:
             existing_xattrs = set(xattr.list(path, nofollow=True))
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.EACCES:
                 raise ApplyError('xattr.set %r: %s' % (path, e))
             else:
@@ -653,7 +655,7 @@ class Metadata:
                     or v != xattr.get(path, k, nofollow=True):
                 try:
                     xattr.set(path, k, v, nofollow=True)
-                except IOError, e:
+                except IOError as e:
                     if e.errno == errno.EPERM \
                             or e.errno == errno.EOPNOTSUPP:
                         raise ApplyError('xattr.set %r: %s' % (path, e))
@@ -663,7 +665,7 @@ class Metadata:
         for k in existing_xattrs:
             try:
                 xattr.remove(path, k, nofollow=True)
-            except IOError, e:
+            except IOError as e:
                 if e.errno == errno.EPERM:
                     raise ApplyError('xattr.remove %r: %s' % (path, e))
                 else:
@@ -725,7 +727,7 @@ class Metadata:
         vint.write_vuint(port, _rec_tag_end)
 
     def encode(self, include_path=True):
-        port = StringIO()
+        port = py_compat.StringIO()
         self.write(port, include_path)
         return port.getvalue()
 
@@ -789,7 +791,7 @@ class Metadata:
                                self._apply_linux_xattr_rec):
             try:
                 apply_metadata(path, restore_numeric_ids=num_ids)
-            except ApplyError, e:
+            except ApplyError as e:
                 add_error(e)
 
     def same_file(self, other):
@@ -841,7 +843,7 @@ def save_tree(output_file, paths,
             m = from_path(p, statinfo=st, archive_path=safe_path,
                           save_symlinks=save_symlinks)
             if verbose:
-                print >> sys.stderr, m.path
+                print(m.path, file=sys.stderr)
             m.write(output_file, include_path=write_paths)
     else:
         start_dir = os.getcwd()
@@ -853,7 +855,7 @@ def save_tree(output_file, paths,
                 m = from_path(p, statinfo=st, archive_path=safe_path,
                               save_symlinks=save_symlinks)
                 if verbose:
-                    print >> sys.stderr, m.path
+                    print(m.path, file=sys.stderr)
                 m.write(output_file, include_path=write_paths)
                 os.chdir(dirlist_dir)
         finally:
@@ -1003,9 +1005,9 @@ def detailed_str(meta, fields = None):
             result.append('posix1e-acl-default: ' + def_acl + '\n')
     return '\n'.join(result)
 
-
+@py_compat.iter
 class _ArchiveIterator:
-    def next(self):
+    def __next__(self):
         try:
             return Metadata.read(self._file)
         except EOFError:
@@ -1023,20 +1025,19 @@ def display_archive(file):
         first_item = True
         for meta in _ArchiveIterator(file):
             if not first_item:
-                print
-            print detailed_str(meta)
+                print()
+            print(detailed_str(meta))
             first_item = False
     elif verbose > 0:
         for meta in _ArchiveIterator(file):
-            print summary_str(meta)
+            print(summary_str(meta))
     elif verbose == 0:
         for meta in _ArchiveIterator(file):
             if not meta.path:
-                print >> sys.stderr, \
-                    'bup: no metadata path, but asked to only display path', \
-                    '(increase verbosity?)'
+                print('bup: no metadata path, but asked to only display path', \
+                    '(increase verbosity?)', file=sys.stderr)
                 sys.exit(1)
-            print meta.path
+            print(meta.path)
 
 
 def start_extract(file, create_symlinks=True):
@@ -1044,7 +1045,7 @@ def start_extract(file, create_symlinks=True):
         if not meta: # Hit end record.
             break
         if verbose:
-            print >> sys.stderr, meta.path
+            print(meta.path, file=sys.stderr)
         xpath = _clean_up_extract_path(meta.path)
         if not xpath:
             add_error(Exception('skipping risky path "%s"' % meta.path))
@@ -1066,7 +1067,7 @@ def finish_extract(file, restore_numeric_ids=False):
                 all_dirs.append(meta)
             else:
                 if verbose:
-                    print >> sys.stderr, meta.path
+                    print(meta.path, file=sys.stderr)
                 meta.apply_to_path(path=xpath,
                                    restore_numeric_ids=restore_numeric_ids)
     all_dirs.sort(key = lambda x : len(x.path), reverse=True)
@@ -1074,7 +1075,7 @@ def finish_extract(file, restore_numeric_ids=False):
         # Don't need to check xpath -- won't be in all_dirs if not OK.
         xpath = _clean_up_extract_path(dir.path)
         if verbose:
-            print >> sys.stderr, dir.path
+            print(dir.path, file=sys.stderr)
         dir.apply_to_path(path=xpath, restore_numeric_ids=restore_numeric_ids)
 
 
@@ -1091,20 +1092,20 @@ def extract(file, restore_numeric_ids=False, create_symlinks=True):
         else:
             meta.path = xpath
             if verbose:
-                print >> sys.stderr, '+', meta.path
+                print('+', meta.path, file=sys.stderr)
             _set_up_path(meta, create_symlinks=create_symlinks)
             if os.path.isdir(meta.path):
                 all_dirs.append(meta)
             else:
                 if verbose:
-                    print >> sys.stderr, '=', meta.path
+                    print('=', meta.path, file=sys.stderr)
                 meta.apply_to_path(restore_numeric_ids=restore_numeric_ids)
     all_dirs.sort(key = lambda x : len(x.path), reverse=True)
     for dir in all_dirs:
         # Don't need to check xpath -- won't be in all_dirs if not OK.
         xpath = _clean_up_extract_path(dir.path)
         if verbose:
-            print >> sys.stderr, '=', xpath
+            print('=', xpath, file=sys.stderr)
         # Shouldn't have to check for risky paths here (omitted above).
         dir.apply_to_path(path=dir.path,
                           restore_numeric_ids=restore_numeric_ids)

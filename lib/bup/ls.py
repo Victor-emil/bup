@@ -1,7 +1,7 @@
 """Common code for listing files from a bup repository."""
 import copy, os.path, stat, xstat
 from bup import metadata, options, vfs
-from helpers import *
+from bup.helpers import *
 
 
 def node_info(n, name,
@@ -95,7 +95,7 @@ def do_ls(args, pwd, default='.', onabort=None, spec_prefix=''):
         if not opt.l and istty1:
             L.append(info)
         else:
-            print info
+            print(info)
 
     ret = 0
     for path in (extra or [default]):
@@ -120,7 +120,7 @@ def do_ls(args, pwd, default='.', onabort=None, spec_prefix=''):
                         output_node_info(sub, name)
             else:
                 output_node_info(n, os.path.normpath(path))
-        except vfs.NodeError, e:
+        except vfs.NodeError as e:
             log('error: %s\n' % e)
             ret = 1
 

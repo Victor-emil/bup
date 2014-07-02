@@ -1,6 +1,6 @@
 from bup import hashsplit, _helpers
 from wvtest import *
-from cStringIO import StringIO
+from bup.py_compat import StringIO
 
 @wvtest
 def test_rolling_sums():

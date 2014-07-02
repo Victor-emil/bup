@@ -1,5 +1,5 @@
-import metadata, os, stat, struct, tempfile
-from bup import xstat
+import os, stat, struct, tempfile
+from bup import metadata, xstat
 from bup.helpers import *
 
 EMPTY_SHA = '\0'*20
@@ -107,7 +107,7 @@ class Level:
         (ofs,n) = (f.tell(), len(self.list))
         if self.list:
             count = len(self.list)
-            #log('popping %r with %d entries\n' 
+            #log('popping %r with %d entries\n'
             #    % (''.join(self.ename), count))
             for e in self.list:
                 e.write(f)
@@ -174,7 +174,7 @@ class Entry:
                                self.gitmode, self.sha, self.flags,
                                self.children_ofs, self.children_n,
                                self.meta_ofs)
-        except (DeprecationWarning, struct.error), e:
+        except (DeprecationWarning, struct.error) as e:
             log('pack error: %s (%r)\n' % (e, self))
             raise
 
@@ -203,7 +203,7 @@ class Entry:
               or self.sha == EMPTY_SHA or not self.gitmode:
             self.invalidate()
         self._fixup()
-        
+
     def _fixup(self):
         if self.uid < 0:
             self.uid += 0x100000000
@@ -330,7 +330,7 @@ class ExistingEntry(Entry):
         ofs = self.children_ofs
         assert(ofs <= len(self._m))
         assert(self.children_n < 1000000)
-        for i in xrange(self.children_n):
+        for i in range(self.children_n):
             eon = self._m.find('\0', ofs)
             assert(eon >= 0)
             assert(eon >= ofs)
@@ -350,7 +350,7 @@ class ExistingEntry(Entry):
 
     def __iter__(self):
         return self.iter()
-            
+
 
 class Reader:
     def __init__(self, filename):
@@ -361,7 +361,7 @@ class Reader:
         f = None
         try:
             f = open(filename, 'r+')
-        except IOError, e:
+        except IOError as e:
             if e.errno == errno.ENOENT:
                 pass
             else:
@@ -490,7 +490,7 @@ class Writer:
 
     def _add(self, ename, entry):
         if self.lastfile and self.lastfile <= ename:
-            raise Error('%r must come before %r' 
+            raise Error('%r must come before %r'
                              % (''.join(ename), ''.join(self.lastfile)))
         self.lastfile = ename
         self.level = _golevel(self.level, self.f, ename, entry,
@@ -545,14 +545,14 @@ def reduce_paths(paths):
                 rp = slashappend(rp)
                 p = slashappend(p)
             xpaths.append((rp, p))
-        except OSError, e:
+        except OSError as e:
             add_error('reduce_paths: %s' % e)
     xpaths.sort()
 
     paths = []
     prev = None
     for (rp, p) in xpaths:
-        if prev and (prev == rp 
+        if prev and (prev == rp
                      or (prev.endswith('/') and rp.startswith(prev))):
             continue # already superceded by previous path
         paths.append((rp, p))

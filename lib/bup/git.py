@@ -6,7 +6,7 @@ import os, sys, zlib, time, subprocess, struct, stat, re, tempfile, glob
 from collections import namedtuple
 
 from bup.helpers import *
-from bup import _helpers, path, midx, bloom, xstat
+from bup import _helpers, path, midx, bloom, xstat, py_compat
 
 max_pack_size = 1000*1000*1000  # larger packs will slow down pruning
 max_pack_objects = 200*1000  # cache memory usage is about 83 bytes per object
@@ -81,7 +81,7 @@ def parse_commit(content):
 
 def get_commit_items(id, cp):
     commit_it = cp.get(id)
-    assert(commit_it.next() == 'commit')
+    assert(next(commit_it) == 'commit')
     commit_content = ''.join(commit_it)
     return parse_commit(commit_content)
 
@@ -127,7 +127,7 @@ def auto_midx(objdir):
     args = [path.exe(), 'midx', '--auto', '--dir', objdir]
     try:
         rv = subprocess.call(args, stdout=open('/dev/null', 'w'))
-    except OSError, e:
+    except OSError as e:
         # make sure 'args' gets printed to help with debugging
         add_error('%r: exception: %s' % (args, e))
         raise
@@ -137,7 +137,7 @@ def auto_midx(objdir):
     args = [path.exe(), 'bloom', '--dir', objdir]
     try:
         rv = subprocess.call(args, stdout=open('/dev/null', 'w'))
-    except OSError, e:
+    except OSError as e:
         # make sure 'args' gets printed to help with debugging
         add_error('%r: exception: %s' % (args, e))
         raise
@@ -348,7 +348,7 @@ class PackIdxV1(PackIdx):
         return str(self.shatable[idx*24+4 : idx*24+24])
 
     def __iter__(self):
-        for i in xrange(self.fanout[255]):
+        for i in range(self.fanout[255]):
             yield buffer(self.map, 256*4 + 24*i + 4, 20)
 
 
@@ -383,7 +383,7 @@ class PackIdxV2(PackIdx):
         return str(self.shatable[idx*20:(idx+1)*20])
 
     def __iter__(self):
-        for i in xrange(self.fanout[255]):
+        for i in range(self.fanout[255]):
             yield buffer(self.map, 8 + 256*4 + 20*i, 20)
 
 
@@ -423,7 +423,7 @@ class PackIdxList:
             else:
                 _total_searches -= 1  # was counted by bloom
                 return None
-        for i in xrange(len(self.packs)):
+        for i in range(len(self.packs)):
             p = self.packs[i]
             _total_searches -= 1  # will be incremented by sub-pack
             ix = p.exists(hash, want_source=want_source)
@@ -497,7 +497,7 @@ class PackIdxList:
                 if not d.get(full):
                     try:
                         ix = open_idx(full)
-                    except GitError, e:
+                    except GitError as e:
                         add_error(e)
                         continue
                     d[full] = ix
@@ -576,7 +576,7 @@ class PackWriter:
             assert(name.endswith('.pack'))
             self.filename = name[:-5]
             self.file.write('PACK\0\0\0\2\0\0\0\0')
-            self.idx = list(list() for i in xrange(256))
+            self.idx = list(list() for i in range(256))
 
     def _raw_write(self, datalist, sha):
         self._open()
@@ -589,8 +589,8 @@ class PackWriter:
         oneblob = ''.join(datalist)
         try:
             f.write(oneblob)
-        except IOError, e:
-            raise GitError, e, sys.exc_info()[2]
+        except IOError as e:
+            raise GitError(e).with_traceback(sys.exc_info()[2])
         nw = len(oneblob)
         crc = zlib.crc32(oneblob) & 0xffffffff
         self._update_idx(sha, crc, nw)
@@ -821,7 +821,7 @@ def rev_list(ref, count=None):
             yield (date, commit)
     rv = p.wait()  # not fatal
     if rv:
-        raise GitError, 'git rev-list returned error %d' % rv
+        raise GitError('git rev-list returned error %d' % rv)
 
 
 def get_commit_dates(refs):
@@ -920,7 +920,7 @@ def check_repo_or_die(path=None):
     guess_repo(path)
     try:
         os.stat(repo('objects/pack/.'))
-    except OSError, e:
+    except OSError as e:
         if e.errno == errno.ENOENT:
             log('error: %r is not a bup repository; run "bup init"\n'
                 % repo())
@@ -970,6 +970,7 @@ def _git_capture(argv):
     return r
 
 
+@py_compat.iter
 class _AbortableIter:
     def __init__(self, it, onabort = None):
         self.it = it
@@ -979,10 +980,10 @@ class _AbortableIter:
     def __iter__(self):
         return self
 
-    def next(self):
+    def __next__(self):
         try:
-            return self.it.next()
-        except StopIteration, e:
+            return next(self.it)
+        except StopIteration as e:
             self.done = True
             raise
         except:
@@ -1066,7 +1067,7 @@ class CatPipe:
             readline_result = self.p.stdout.readline()
             assert(readline_result == '\n')
             self.inprogress = None
-        except Exception, e:
+        except Exception as e:
             it.abort()
             raise
 
@@ -1085,7 +1086,7 @@ class CatPipe:
         _git_wait('git cat-file', p)
 
     def _join(self, it):
-        type = it.next()
+        type = next(it)
         if type == 'blob':
             for blob in it:
                 yield blob

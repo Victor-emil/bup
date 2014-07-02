@@ -54,7 +54,7 @@ finally:
             ret = p.wait()
             sp.wait()
             break
-        except SigException, e:
+        except SigException as e:
             log('\nbup on: %s\n' % e)
             os.kill(p.pid, e.signum)
             ret = 84

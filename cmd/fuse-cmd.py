@@ -111,7 +111,7 @@ class BupFs(fuse.Fuse):
 
 
 if not hasattr(fuse, '__version__'):
-    raise RuntimeError, "your fuse module is too old for fuse.__version__"
+    raise RuntimeError("your fuse module is too old for fuse.__version__")
 fuse.fuse_python_api = (0, 2)
 
 
@@ -137,7 +137,7 @@ if opt.debug:
     f.fuse_args.add('debug')
 if opt.foreground:
     f.fuse_args.setmod('foreground')
-print f.multithreaded
+print(f.multithreaded)
 f.multithreaded = False
 if opt.allow_other:
     f.fuse_args.add('allow_other')
