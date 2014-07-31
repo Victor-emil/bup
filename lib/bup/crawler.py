@@ -2,7 +2,7 @@ import stat, os
 from bup import py_compat
 from bup.xstat import lstat
 from bup.helpers import debug1, should_rx_exclude_path
-from errno import EINVAL, ENOENT
+from errno import EINVAL, ELOOP, ENOENT
 from os import curdir, listdir, open, close, fchdir
 from os.path import join
 
@@ -26,7 +26,7 @@ def compute_depth(path):
     _, remainder = os.path.splitdrive(normpath)
     remainder = remainder.split(os.sep)
     depth = len(remainder)-1
-    if not remainder[1]: # trailing /
+    if len(remainder) > 1 and not remainder[1]: # trailing os.sep
         depth -= 1
     return depth
 
@@ -52,6 +52,7 @@ def _walk(
         bup_dir=None,
         excluded_paths=None,
         exclude_rxs=None,
+        fullpaths=False,
         depth=0,
         ):
     for name, st in _iterdir():
@@ -71,7 +72,10 @@ def _walk(
                     debug1('Skipping BUP_DIR.\n')
                     continue
 
-            yield name, depth, st
+            if fullpaths:
+                yield path, depth, st
+            else:
+                yield name, depth, st
 
             if dev is not None and st.st_dev != dev:
                 debug1('Skipping contents of %r: different filesystem.\n' % path)
@@ -80,7 +84,7 @@ def _walk(
             try:
                 fd = open(name, OPEN_MASK)
             except OSError as e:
-                if e.errno != ENOENT:
+                if e.errno not in (ELOOP, ENOENT):
                     raise
                 continue
 
@@ -93,6 +97,7 @@ def _walk(
                         bup_dir=bup_dir,
                         excluded_paths=excluded_paths,
                         exclude_rxs=exclude_rxs,
+                        fullpaths=fullpaths,
                         depth=depth+1,
                         ):
                     yield x
@@ -102,7 +107,10 @@ def _walk(
             fchdir(pfd)
 
         else:
-            yield name, depth, st
+            if fullpaths:
+                yield path, depth, st
+            else:
+                yield name, depth, st
 
 def walk(
         paths,
@@ -110,6 +118,7 @@ def walk(
         bup_dir=None,
         excluded_paths=None,
         exclude_rxs=None,
+        fullpaths=False,
         depths=None,
         ):
 
@@ -137,7 +146,10 @@ def walk(
             except StopIteration:
                 depth = compute_depth(path)
 
-            name = os.path.basename(path)
+            if fullpaths:
+                name = path
+            else:
+                name = os.path.basename(path)
 
             if stat.S_ISDIR(st.st_mode):
                 if bup_dir is not None:
@@ -152,7 +164,7 @@ def walk(
                 try:
                     fd = open(path, OPEN_MASK)
                 except OSError as e:
-                    if e.errno != ENOENT:
+                    if e.errno not in (ELOOP, ENOENT):
                         raise
                     continue
 
@@ -165,6 +177,7 @@ def walk(
                             bup_dir=bup_dir,
                             excluded_paths=excluded_paths,
                             exclude_rxs=exclude_rxs,
+                            fullpaths=fullpaths,
                             depth=depth+1,
                             ):
                         yield x

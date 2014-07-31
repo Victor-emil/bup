@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-from os.path import relpath
+import sys
 from bup import options, crawler
-from bup.helpers import *
+from bup.helpers import parse_excludes, parse_rx_excludes
 
 optspec = """
-bup drecurse <path>
+bup crawler <path>
 --
 x,xdev,one-file-system   don't cross filesystem boundaries
 exclude= a path to exclude from the backup (can be used more than once)
@@ -20,23 +20,24 @@ o = options.Options(optspec)
 
 excluded_paths = parse_excludes(flags, o.fatal)
 exclude_rxs = parse_rx_excludes(flags, o.fatal)
-it = crawler.recursive_dirlist(extra, opt.xdev,
-                                excluded_paths=excluded_paths,
-                                exclude_rxs=exclude_rxs)
+itr = crawler.walk(
+        paths=extra,
+        xdev=opt.xdev,
+        excluded_paths=excluded_paths,
+        exclude_rxs=exclude_rxs,
+        fullpaths=True,
+        )
+
 if opt.profile:
     import cProfile
     def do_it():
-        for i in it:
+        for x in itr:
             pass
     cProfile.run('do_it()')
 else:
     if opt.quiet:
-        for i in it:
+        for x in itr:
             pass
     else:
-        for (name,st) in it:
-            print name
-
-if saved_errors:
-    log('WARNING: %d errors encountered.\n' % len(saved_errors))
-    sys.exit(1)
+        for path, _, _ in itr:
+            print(path)
