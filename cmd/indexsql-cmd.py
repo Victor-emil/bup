@@ -6,8 +6,8 @@ from bup.helpers import (
         handle_ctrl_c,
         parse_excludes,
         parse_rx_excludes,
+        progress,
         qprogress,
-        saved_errors,
         )
 
 def tuplize_path(path):
@@ -43,6 +43,20 @@ def update_index(top, excluded_paths, exclude_rxs):
             )
 
     fsname, fsdepth, st = next(fsiter)
+
+    # for status
+    total = 1
+    start_time = time.time()
+    if opt.verbose:
+        sdepth = idepth
+        names = {sdepth: top}
+        if (opt.verbose >= 2
+                or (opt.verbose == 1
+                        and stat.S_ISDIR(st.st_mode))):
+            path = os.path.join(
+                    *(names[i] for i in range(sdepth, fsdepth+1)))
+            sys.stdout.write('%s\n' % path)
+            sys.stdout.flush()
 
     # pids records the ids of the fs tree as we iterate
     pids = {idepth: id}
@@ -84,6 +98,20 @@ def update_index(top, excluded_paths, exclude_rxs):
                 fsnotdone = False
             else:
                 fsupdate = False
+                total += 1
+                if opt.verbose:
+                    if (opt.verbose >= 2
+                            or (opt.verbose == 1
+                                    and stat.S_ISDIR(st.st_mode))):
+                        names[fsdepth] = fsname
+                        path = os.path.join(
+                                *(names[i] for i in range(sdepth, fsdepth+1)))
+                        sys.stdout.write('%s\n' % path)
+                        sys.stdout.flush()
+                elif not total % 256:
+                    elapsed = time.time() - start_time
+                    paths_per_sec = total // elapsed if elapsed else 0
+                    #qprogress('Indexing: %d (%d paths/s)\r' % (total, paths_per_sec))
 
     if inotdone and not fsnotdone:
         # need to delete extra paths
@@ -95,7 +123,26 @@ def update_index(top, excluded_paths, exclude_rxs):
         # need to add extra paths
         pids[fsdepth] = add_node(pids[fsdepth-1], fsname, st)
         for fsname, fsdepth, st in fsiter:
+            total += 1
+            if opt.verbose:
+                if (opt.verbose >= 2
+                        or (opt.verbose == 1
+                                and stat.S_ISDIR(st.st_mode))):
+                    names[fsdepth] = fsname
+                    path = os.path.join(
+                            *(names[i] for i in range(sdepth, fsdepth+1)))
+                    sys.stdout.write('%s\n' % path)
+                    sys.stdout.flush()
+            elif not total % 256:
+                elapsed = time.time() - start_time
+                paths_per_sec = total // elapsed if elapsed else 0
+                qprogress('Indexing: %d (%d paths/s)\r' % (total, paths_per_sec))
             pids[fsdepth] = add_node(pids[fsdepth-1], fsname, st)
+
+    elapsed = time.time() - start_time
+    paths_per_sec = total // elapsed if elapsed else 0
+    progress('Indexing: %d, done (%d paths/s).\n' % (total, paths_per_sec))
+
 
 optspec = """
 bup index <-p|m|s|u> [options...] <filenames...>
@@ -181,7 +228,3 @@ if opt['print'] or opt.status or opt.modified:
 if opt.check and (opt['print'] or opt.status or opt.modified or opt.update):
     log('check: starting final check.\n')
     # What needs to be done here?
-
-if saved_errors:
-    log('WARNING: %d errors encountered.\n' % len(saved_errors))
-    sys.exit(1)
