@@ -217,18 +217,25 @@ class Index(ReadOnlyIndex):
             (st.st_mode, st.st_ino,  st.st_dev,   st.st_nlink, st.st_uid,
              st.st_gid,  st.st_size, st.st_atime, st.st_mtime, st.st_ctime),
         )
-        cursor.execute(
-            "INSERT INTO nodes (name, info_id) VALUES (?, ?)",
+        cursor.execute("""
+            INSERT INTO nodes
+                (name, info_id)
+                VALUES
+                    (?, ?)
+            """,
             (name, cursor.lastrowid),
             )
         id = cursor.lastrowid
-        cursor.execute(
-            "INSERT INTO edges VALUES (?, ?)",
+        cursor.execute("""
+            INSERT INTO edges
+                VALUES
+                    (?, ?)
+            """,
             (pid, id),
             )
         return id
 
-    def add_down_to_root(self, path):
+    def add_ancestors(self, path):
         id, depth = self.closest_ancestor(path)
         for i in range(depth+1, len(path)):
             id = self.add_node(

@@ -15,17 +15,19 @@ def tuplize_path(path):
     return (drive+os.sep,) + tuple(
             name for i, name in enumerate(path.split(os.sep)) if i)
 
+
 def update_index(top, excluded_paths, exclude_rxs):
     top_tuple = tuplize_path(top)
     bup_dir = os.path.abspath(git.repo())
 
     index = indexmod.Index(indexfile)
 
+    # shortcuts for convenience
     add_node = index.add_node
     update_node = index.update_node
     delete_node = index.delete_node
 
-    index.add_down_to_root(top_tuple)
+    index.add_ancestors(top_tuple)
 
     iiter = index.pre_order_iter(base=top_tuple)
 
@@ -42,8 +44,11 @@ def update_index(top, excluded_paths, exclude_rxs):
 
     fsname, fsdepth, st = next(fsiter)
 
+    # pids records the ids of the fs tree as we iterate
     pids = {idepth: id}
 
+    # we walk the union of the fs tree and index tree
+    # and record the fs changes into the index
     inotdone = fsnotdone = True
     while inotdone and fsnotdone:
         if idepth < fsdepth:
